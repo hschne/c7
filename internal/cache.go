@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const cacheTTL = 7 * 24 * time.Hour
+const CacheTTL = 7 * 24 * time.Hour
 
 type CacheEntry struct {
 	ID   string `json:"id"`
@@ -16,7 +16,6 @@ type CacheEntry struct {
 	TS   int64  `json:"ts"`
 }
 
-// CacheStore is the on-disk format: map of lowercased library name → entry.
 type CacheStore map[string]CacheEntry
 
 func cachePath() (string, error) {
@@ -36,57 +35,56 @@ func cacheLoad() CacheStore {
 	if err != nil {
 		return nil
 	}
-	var store CacheStore
-	if json.Unmarshal(data, &store) != nil {
+	var s CacheStore
+	if json.Unmarshal(data, &s) != nil {
 		return nil
 	}
-	return store
+	return s
 }
 
-func cacheLookup(key string) (CacheEntry, bool) {
-	store := cacheLoad()
-	if store == nil {
+func CacheLookup(key string) (CacheEntry, bool) {
+	s := cacheLoad()
+	if s == nil {
 		return CacheEntry{}, false
 	}
-	entry, ok := store[strings.ToLower(key)]
+	e, ok := s[strings.ToLower(key)]
 	if !ok {
 		return CacheEntry{}, false
 	}
-	if time.Since(time.Unix(entry.TS, 0)) > cacheTTL {
+	if time.Since(time.Unix(e.TS, 0)) > CacheTTL {
 		return CacheEntry{}, false
 	}
-	return entry, true
+	return e, true
 }
 
-func cacheSave(key string, lib Library) {
+func CacheSave(key, id, name string) {
 	p, err := cachePath()
 	if err != nil {
 		return
 	}
 
-	store := cacheLoad()
-	if store == nil {
-		store = make(CacheStore)
+	s := cacheLoad()
+	if s == nil {
+		s = make(CacheStore)
 	}
 
-	store[strings.ToLower(key)] = CacheEntry{
-		ID:   lib.ID,
-		Name: lib.Name,
+	s[strings.ToLower(key)] = CacheEntry{
+		ID:   id,
+		Name: name,
 		TS:   time.Now().Unix(),
 	}
 
-	data, err := json.MarshalIndent(store, "", "  ")
+	data, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return
 	}
-
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 		return
 	}
 	_ = os.WriteFile(p, data, 0o644)
 }
 
-func cacheClear() error {
+func CacheClear() error {
 	p, err := cachePath()
 	if err != nil {
 		return err

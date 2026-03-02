@@ -1,4 +1,4 @@
-package main
+package test
 
 import (
 	"encoding/json"
@@ -6,35 +6,32 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/hschne/c7/internal"
 )
 
-// withCacheDir points the cache at a temp directory for the duration of a test.
-// It sets XDG_CACHE_HOME and restores the original value on cleanup.
-func withCacheDir(t *testing.T) string {
+func withTempCache(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	prev := os.Getenv("XDG_CACHE_HOME")
 	t.Setenv("XDG_CACHE_HOME", dir)
-	t.Cleanup(func() { os.Setenv("XDG_CACHE_HOME", prev) })
 	return dir
 }
 
 func TestCacheLookupMiss(t *testing.T) {
-	withCacheDir(t)
+	withTempCache(t)
 
-	_, ok := cacheLookup("nonexistent")
+	_, ok := internal.CacheLookup("nonexistent")
 	if ok {
 		t.Fatal("expected cache miss for empty cache")
 	}
 }
 
 func TestCacheSaveAndLookup(t *testing.T) {
-	withCacheDir(t)
+	withTempCache(t)
 
-	lib := Library{ID: "/rails/rails", Name: "Ruby on Rails"}
-	cacheSave("rails", lib)
+	internal.CacheSave("rails", "/rails/rails", "Ruby on Rails")
 
-	entry, ok := cacheLookup("rails")
+	entry, ok := internal.CacheLookup("rails")
 	if !ok {
 		t.Fatal("expected cache hit after save")
 	}
@@ -47,14 +44,13 @@ func TestCacheSaveAndLookup(t *testing.T) {
 }
 
 func TestCacheLookupCaseInsensitive(t *testing.T) {
-	withCacheDir(t)
+	withTempCache(t)
 
-	cacheSave("Rails", Library{ID: "/rails/rails", Name: "Ruby on Rails"})
+	internal.CacheSave("Rails", "/rails/rails", "Ruby on Rails")
 
 	for _, key := range []string{"rails", "Rails", "RAILS"} {
 		t.Run(key, func(t *testing.T) {
-			_, ok := cacheLookup(key)
-			if !ok {
+			if _, ok := internal.CacheLookup(key); !ok {
 				t.Errorf("expected cache hit for key %q", key)
 			}
 		})
@@ -62,17 +58,16 @@ func TestCacheLookupCaseInsensitive(t *testing.T) {
 }
 
 func TestCacheLookupExpired(t *testing.T) {
-	dir := withCacheDir(t)
+	dir := withTempCache(t)
 
-	// Write an entry with a timestamp older than the TTL.
-	store := CacheStore{
+	s := internal.CacheStore{
 		"old": {
 			ID:   "/old/lib",
 			Name: "Old Lib",
-			TS:   time.Now().Add(-cacheTTL - time.Hour).Unix(),
+			TS:   time.Now().Add(-internal.CacheTTL - time.Hour).Unix(),
 		},
 	}
-	data, err := json.Marshal(store)
+	data, err := json.Marshal(s)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,17 +79,16 @@ func TestCacheLookupExpired(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, ok := cacheLookup("old")
-	if ok {
+	if _, ok := internal.CacheLookup("old"); ok {
 		t.Fatal("expected cache miss for expired entry")
 	}
 }
 
 func TestCacheSaveMultipleKeys(t *testing.T) {
-	withCacheDir(t)
+	withTempCache(t)
 
-	cacheSave("rails", Library{ID: "/rails/rails", Name: "Rails"})
-	cacheSave("next.js", Library{ID: "/vercel/next.js", Name: "Next.js"})
+	internal.CacheSave("rails", "/rails/rails", "Rails")
+	internal.CacheSave("next.js", "/vercel/next.js", "Next.js")
 
 	tests := []struct {
 		key    string
@@ -105,7 +99,7 @@ func TestCacheSaveMultipleKeys(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
-			entry, ok := cacheLookup(tt.key)
+			entry, ok := internal.CacheLookup(tt.key)
 			if !ok {
 				t.Fatalf("expected cache hit for %q", tt.key)
 			}
@@ -116,47 +110,43 @@ func TestCacheSaveMultipleKeys(t *testing.T) {
 	}
 }
 
-func TestCacheSaveOverwritesExisting(t *testing.T) {
-	withCacheDir(t)
+func TestCacheSaveOverwrites(t *testing.T) {
+	withTempCache(t)
 
-	cacheSave("rails", Library{ID: "/old/rails", Name: "Old"})
-	cacheSave("rails", Library{ID: "/rails/rails", Name: "New"})
+	internal.CacheSave("rails", "/old/rails", "Old")
+	internal.CacheSave("rails", "/rails/rails", "New")
 
-	entry, ok := cacheLookup("rails")
+	entry, ok := internal.CacheLookup("rails")
 	if !ok {
 		t.Fatal("expected cache hit")
 	}
 	if entry.ID != "/rails/rails" {
-		t.Errorf("ID = %q, want %q (overwrite failed)", entry.ID, "/rails/rails")
+		t.Errorf("ID = %q, want %q", entry.ID, "/rails/rails")
 	}
 }
 
 func TestCacheClear(t *testing.T) {
-	withCacheDir(t)
+	withTempCache(t)
 
-	cacheSave("rails", Library{ID: "/rails/rails", Name: "Rails"})
-
-	if err := cacheClear(); err != nil {
-		t.Fatalf("cacheClear failed: %v", err)
+	internal.CacheSave("rails", "/rails/rails", "Rails")
+	if err := internal.CacheClear(); err != nil {
+		t.Fatalf("CacheClear failed: %v", err)
 	}
-
-	_, ok := cacheLookup("rails")
-	if ok {
+	if _, ok := internal.CacheLookup("rails"); ok {
 		t.Fatal("expected cache miss after clear")
 	}
 }
 
 func TestCacheClearNoFile(t *testing.T) {
-	withCacheDir(t)
+	withTempCache(t)
 
-	// Clearing when no cache file exists should not error.
-	if err := cacheClear(); err != nil {
-		t.Fatalf("cacheClear on empty cache failed: %v", err)
+	if err := internal.CacheClear(); err != nil {
+		t.Fatalf("CacheClear on empty cache: %v", err)
 	}
 }
 
 func TestCacheLoadCorruptFile(t *testing.T) {
-	dir := withCacheDir(t)
+	dir := withTempCache(t)
 
 	p := filepath.Join(dir, "c7", "libs.json")
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
@@ -166,14 +156,12 @@ func TestCacheLoadCorruptFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, ok := cacheLookup("anything")
-	if ok {
+	if _, ok := internal.CacheLookup("anything"); ok {
 		t.Fatal("expected cache miss for corrupt file")
 	}
 
-	// Saving should overwrite the corrupt file gracefully.
-	cacheSave("rails", Library{ID: "/rails/rails", Name: "Rails"})
-	entry, ok := cacheLookup("rails")
+	internal.CacheSave("rails", "/rails/rails", "Rails")
+	entry, ok := internal.CacheLookup("rails")
 	if !ok {
 		t.Fatal("expected cache hit after saving over corrupt file")
 	}

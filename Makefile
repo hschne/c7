@@ -7,7 +7,6 @@ LDFLAGS := -ldflags "-X main.version=$(VERSION) -s -w"
 build:
 	go build $(LDFLAGS) -o $(BINARY) .
 
-# Build for common platforms
 build-all:
 	GOOS=linux   GOARCH=amd64 go build $(LDFLAGS) -o dist/$(BINARY)-linux-amd64 .
 	GOOS=darwin  GOARCH=amd64 go build $(LDFLAGS) -o dist/$(BINARY)-darwin-amd64 .
@@ -15,7 +14,7 @@ build-all:
 	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o dist/$(BINARY)-windows-amd64.exe .
 
 install: build
-	cp $(BINARY) /usr/local/bin/$(BINARY)
+	cp $(BINARY) $(HOME)/.local/bin/$(BINARY)
 
 test:
 	go test -v ./...
