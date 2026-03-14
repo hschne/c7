@@ -1,12 +1,11 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 )
-
-var version = "dev"
 
 var rootCmd = &cobra.Command{
 	Use:   "c7",
@@ -14,12 +13,10 @@ var rootCmd = &cobra.Command{
 	Long: `c7 is a lightweight CLI for Context7 (context7.com).
 Fetch current library documentation from the terminal.
 No Node.js required, single binary, instant startup.`,
-	Version: version,
 }
 
-func Execute(v string) {
-	version = v
-	rootCmd.Version = v
+func Execute(version, commit, date string) {
+	rootCmd.Version = fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date)
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
