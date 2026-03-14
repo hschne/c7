@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+
+if [ -z "${1:-}" ]; then
+  echo "Usage: $0 <version>"
+  exit 1
+fi
+
+VERSION=$1
+
+git add -A
+git commit -m "v${VERSION}" || echo "Nothing to commit"
+git tag -m "Release ${VERSION}" "v${VERSION}"
+
+CURRENT_BRANCH=$(git branch --show-current)
+git push origin "$CURRENT_BRANCH" --tags
