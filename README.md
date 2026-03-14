@@ -14,48 +14,57 @@
 
 A lightweight CLI for [Context7](https://context7.com) — fetch up-to-date library documentation without leaving the terminal. No Node.js, no dependencies, just a single binary.
 
-## Install
+## Getting Started
 
-### Install script (recommended)
+[Install](#install-script) the binary, and query [context7]() for information.
 
 ```bash
+# Install c7
+curl -fsSL https://raw.githubusercontent.com/hschne/c7/main/install.sh | sh
+
+# Fetch docs
+c7 get rails "active record scopes"
+c7 get daisyui "account dropdown"
+```
+
+For additional configuration options and commands see [Usage](#usage).
+
+## Install
+
+### Install script 
+
+```bash
+# Install latest release binary from GitHub /usr/local/bin - requires sudo
 curl -fsSL https://raw.githubusercontent.com/hschne/c7/main/install.sh | sh
 ```
 
-Detects your OS and architecture, downloads the right binary from GitHub Releases, and installs it to `/usr/local/bin` by default.
-
-Want a user-local install instead?
-
 ```bash
+# Install to  ~/.local/bin without sudo 
 curl -fsSL https://raw.githubusercontent.com/hschne/c7/main/install.sh | sh -s -- --local
 ```
 
-You can also customize with environment variables:
+<detail>
+  <summary>Specify version or directory
+  </summary>
 
 ```bash
-# Install a specific version
 C7_VERSION=v0.2.0 curl -fsSL https://raw.githubusercontent.com/hschne/c7/main/install.sh | sh
+```
 
-# Install to a different directory
+```bash
 C7_INSTALL=$HOME/.local/bin curl -fsSL https://raw.githubusercontent.com/hschne/c7/main/install.sh | sh
 ```
+</detail>
 
-### Download from GitHub Releases
 
-Grab the right archive for your platform from [Releases](https://github.com/hschne/c7/releases/latest), extract, and put the binary somewhere on your `PATH`:
-
-```bash
-tar -xzf c7_*_linux_amd64.tar.gz
-install -m 755 c7 /usr/local/bin/c7
-```
-
-### Build from source
+### Build from Source
 
 ```bash
 go install github.com/hschne/c7@latest
 ```
 
 ## Usage
+
 
 ### `c7 get` — one-shot lookup
 
