@@ -3,10 +3,14 @@
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/hschne/c7/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/hschne/c7/main/install.sh | sh -s -- --local
 #
-# Options (environment variables):
+# Options:
+#   --local       Install to ~/.local/bin instead of /usr/local/bin
+#
+# Environment variables:
 #   C7_VERSION    Version to install (default: latest)
-#   C7_INSTALL    Install directory (default: /usr/local/bin)
+#   C7_INSTALL    Install directory (default: /usr/local/bin, overridden by --local)
 #
 set -e
 
@@ -15,6 +19,8 @@ VERSION="${C7_VERSION:-latest}"
 INSTALL_DIR="${C7_INSTALL:-/usr/local/bin}"
 
 main() {
+  parse_args "$@"
+
   os="$(detect_os)"
   arch="$(detect_arch)"
 
@@ -22,9 +28,7 @@ main() {
     VERSION="$(latest_version)"
   fi
 
-  # Strip leading v for asset name
   version_bare="${VERSION#v}"
-
   asset="c7_${version_bare}_${os}_${arch}.tar.gz"
   url="https://github.com/${REPO}/releases/download/${VERSION}/${asset}"
 
@@ -43,6 +47,39 @@ main() {
   echo "Done. Run 'c7 --version' to verify."
 }
 
+parse_args() {
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --local)
+        INSTALL_DIR="${HOME}/.local/bin"
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        echo "Unknown option: $1" >&2
+        usage >&2
+        exit 1
+        ;;
+    esac
+    shift
+  done
+}
+
+usage() {
+  cat <<EOF
+Usage: install.sh [--local]
+
+Options:
+  --local   Install to ~/.local/bin instead of /usr/local/bin
+
+Environment variables:
+  C7_VERSION  Version to install (default: latest)
+  C7_INSTALL  Install directory (default: /usr/local/bin)
+EOF
+}
+
 detect_os() {
   case "$(uname -s)" in
     Linux*)  echo "linux" ;;
@@ -53,9 +90,9 @@ detect_os() {
 
 detect_arch() {
   case "$(uname -m)" in
-    x86_64|amd64)   echo "amd64" ;;
-    aarch64|arm64)   echo "arm64" ;;
-    *)               echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+    x86_64|amd64) echo "amd64" ;;
+    aarch64|arm64) echo "arm64" ;;
+    *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
   esac
 }
 
@@ -85,12 +122,16 @@ download() {
 install_binary() {
   src="$1"
   dest="$2"
+
+  mkdir -p "$(dirname "$dest")"
+
   if [ -w "$(dirname "$dest")" ]; then
     install -m 755 "$src" "$dest"
   else
     echo "Need elevated permissions to install to $(dirname "$dest")."
+    sudo install -d -m 755 "$(dirname "$dest")"
     sudo install -m 755 "$src" "$dest"
   fi
 }
 
-main
+main "$@"

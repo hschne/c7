@@ -22,7 +22,15 @@ A lightweight CLI for [Context7](https://context7.com) — fetch up-to-date libr
 curl -fsSL https://raw.githubusercontent.com/hschne/c7/main/install.sh | sh
 ```
 
-Detects your OS and architecture, downloads the right binary from GitHub Releases, and installs it to `/usr/local/bin`. Customize with environment variables:
+Detects your OS and architecture, downloads the right binary from GitHub Releases, and installs it to `/usr/local/bin` by default.
+
+Want a user-local install instead?
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hschne/c7/main/install.sh | sh -s -- --local
+```
+
+You can also customize with environment variables:
 
 ```bash
 # Install a specific version
